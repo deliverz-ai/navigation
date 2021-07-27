@@ -580,8 +580,8 @@ namespace move_base {
     double dist = distance_info.second;
     feedback_info_.calculateAverageVelocity(dist, current_time);
 
-    //publish feedback after X(30) iterations
-    if (feedback_info_.average_velocity_iteration_ > 30) {
+    //publish feedback after X(30) iterations and every 10 iterations.
+    if ((feedback_info_.average_velocity_iteration_ > 30) && ((feedback_info_.average_velocity_iteration_ % 10) == 0)) {
       publishFeedback(goal, dist, feedback_info_.calculateTimeToGoal(dist));
     }
 
