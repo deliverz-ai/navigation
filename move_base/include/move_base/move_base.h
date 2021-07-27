@@ -226,7 +226,9 @@ namespace move_base {
 
       geometry_msgs::PoseStamped goalToGlobalFrame(const geometry_msgs::PoseStamped& goal_pose_msg);
 
-      void publishFeedback(const geometry_msgs::PoseStamped& current_position);
+      void publishFeedback(const geometry_msgs::PoseStamped& current_position, const geometry_msgs::PoseStamped& goal);
+
+      void publishFeedback(const geometry_msgs::PoseStamped& goal, double dist, double time);
 
       std::pair<bool, double> calculateGlobalPlanDistToGoal(const geometry_msgs::PoseStamped& current_position);
 

@@ -567,7 +567,7 @@ namespace move_base {
   }
 
   //publish feedback based on latest_plan.Called in context of executeCycle.
-  void MoveBase::publishFeedback(const geometry_msgs::PoseStamped& current_position)
+  void MoveBase::publishFeedback(const geometry_msgs::PoseStamped& current_position, const geometry_msgs::PoseStamped& goal)
   {
     //calculate distance to goal from current position
     std::pair<bool, double> distance_info = calculateGlobalPlanDistToGoal(current_position);
@@ -582,15 +582,23 @@ namespace move_base {
 
     //publish feedback after X(30) iterations
     if (feedback_info_.average_velocity_iteration_ > 30) {
-      move_base_msgs::Feedback msg;
-      msg.dist_to_goal = dist;
-      msg.time_to_goal = feedback_info_.calculateTimeToGoal(dist);
-      feedback_distance_pub_.publish(msg);
+      publishFeedback(goal, dist, feedback_info_.calculateTimeToGoal(dist));
     }
 
     //save feedback info
     feedback_info_.prev_time_ = current_time;
     feedback_info_.prev_dist_to_goal_ = dist;
+  }
+
+  //publish feedback
+  void MoveBase::publishFeedback(const geometry_msgs::PoseStamped& goal, double dist, double time)
+  {
+    move_base_msgs::Feedback msg;
+    msg.goal = goal;
+    msg.dist_to_goal = dist;
+    msg.time_to_goal = time;
+
+    feedback_distance_pub_.publish(msg);
   }
 
   //calculate distance along the global path from current position to the goal
@@ -883,7 +891,7 @@ namespace move_base {
     feedback.base_position = current_position;
     as_->publishFeedback(feedback);
     //publish feedback
-    publishFeedback(current_position);
+    publishFeedback(current_position, goal);
 
     //check to see if we've moved far enough to reset our oscillation timeout
     if(distance(current_position, oscillation_pose_) >= oscillation_distance_)
@@ -958,6 +966,7 @@ namespace move_base {
         //check to see if we've reached our goal
         if(tc_->isGoalReached()){
           ROS_DEBUG_NAMED("move_base","Goal reached!");
+          publishFeedback(goal, 0.0, 0.0);
           resetState();
 
           //disable the planner thread
