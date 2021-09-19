@@ -566,8 +566,8 @@ namespace move_base {
     return global_pose;
   }
 
-  //publish feedback based on latest_plan.Called in context of executeCycle.
-  void MoveBase::publishFeedback(const geometry_msgs::PoseStamped& current_position, const geometry_msgs::PoseStamped& goal)
+  //compute and publish feedback based on latest_plan.Called in context of executeCycle.
+  void MoveBase::computeAndPublishFeedback(const geometry_msgs::PoseStamped& current_position, const geometry_msgs::PoseStamped& goal)
   {
     //calculate distance to goal from current position
     std::pair<bool, double> distance_info = calculateGlobalPlanDistToGoal(current_position);
@@ -890,8 +890,8 @@ namespace move_base {
     move_base_msgs::MoveBaseFeedback feedback;
     feedback.base_position = current_position;
     as_->publishFeedback(feedback);
-    //publish feedback
-    publishFeedback(current_position, goal);
+    //compute abd publish feedback
+    computeAndPublishFeedback(current_position, goal);
 
     //check to see if we've moved far enough to reset our oscillation timeout
     if(distance(current_position, oscillation_pose_) >= oscillation_distance_)
