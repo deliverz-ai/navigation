@@ -87,6 +87,9 @@ namespace dwa_local_planner {
 
       // update dwa specific configuration
       dp_->reconfigure(config);
+
+      // Update pivot rotation controller
+      pivotRotationController_.setParameters(config.pivot_turn_angle, config.pivot_yaw_tolerance, config.path_heading_distance);
   }
 
   DWAPlannerROS::DWAPlannerROS() : initialized_(false),
@@ -103,6 +106,7 @@ namespace dwa_local_planner {
       ros::NodeHandle private_nh("~/" + name);
       g_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
       l_plan_pub_ = private_nh.advertise<nav_msgs::Path>("local_plan", 1);
+      gh_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_heading_plan", 1);
       tf_ = tf;
       costmap_ros_ = costmap_ros;
       costmap_ros_->getRobotPose(current_pose_);
@@ -146,6 +150,7 @@ namespace dwa_local_planner {
     }
     //when we get a new plan, we also want to clear any latch we may have on goal tolerances
     latchedStopRotateController_.resetLatching();
+    pivotRotationController_.reset();
 
     ROS_INFO("Got new plan");
     return dp_->setPlan(orig_global_plan);
@@ -185,6 +190,30 @@ namespace dwa_local_planner {
 
   void DWAPlannerROS::publishGlobalPlan(std::vector<geometry_msgs::PoseStamped>& path) {
     base_local_planner::publishPlan(path, g_plan_pub_);
+  }
+
+  void DWAPlannerROS::publishPath(const std::vector<Eigen::Vector2f> &path, const ros::Publisher &pub,
+                                  const std::string &frame_id, ros::Time time)
+  {
+    if (pub.getNumSubscribers() > 0) {
+      std::vector<geometry_msgs::PoseStamped> plan(path.size());
+      double target_heading = 0;
+      for (unsigned int i = 0; i < path.size(); ++i) {
+        plan[i].header.frame_id = frame_id;
+        plan[i].header.stamp = time;
+        plan[i].pose.position.x = path[i].x();
+        plan[i].pose.position.y = path[i].y();
+        // Set orientation along the path
+        if (i < path.size() - 1) {
+          Eigen::Vector2f heading_vec = path[i+1] - path[i];
+          target_heading = atan2(heading_vec.y(), heading_vec.x());
+        }
+        tf2::Quaternion q;
+        q.setRPY(0, 0, target_heading);
+        tf2::convert(q, plan[i].pose.orientation);
+      }
+      base_local_planner::publishPlan(plan, pub);
+    }
   }
 
   DWAPlannerROS::~DWAPlannerROS(){
@@ -304,15 +333,35 @@ namespace dwa_local_planner {
           current_pose_,
           boost::bind(&DWAPlanner::checkTrajectory, dp_, _1, _2, _3));
     } else {
-      bool isOk = dwaComputeVelocityCommands(current_pose_, cmd_vel);
-      if (isOk) {
-        publishGlobalPlan(transformed_plan);
-      } else {
-        ROS_WARN_NAMED("dwa_local_planner", "DWA planner failed to produce path.");
+      // Check for pivot controller action
+      std::vector<Eigen::Vector2f> transformed_heading_path;
+      bool isRunNeeded = pivotRotationController_.isRunNeeded(
+                             current_pose_, transformed_plan,
+                             planner_util_, odom_helper_, transformed_heading_path);
+      // Publish global and global heading plans
+      publishGlobalPlan(transformed_plan);
+      publishPath(transformed_heading_path, gh_plan_pub_, planner_util_.getGlobalFrame(), transformed_plan[0].header.stamp);
+      if (isRunNeeded)
+      {
+        ROS_DEBUG_NAMED("dwa_local_planner", "Running pivot rotation controller.");
+        // Publish an empty local & global plan
         std::vector<geometry_msgs::PoseStamped> empty_plan;
-        publishGlobalPlan(empty_plan);
+        publishLocalPlan(empty_plan);
+        // Run PivotRotationController
+        return pivotRotationController_.computeVelocityCommand(dp_->getSimPeriod(), cmd_vel);
       }
-      return isOk;
+      // Continue with DWA trajectory planner
+      else {
+        bool isOk = dwaComputeVelocityCommands(current_pose_, cmd_vel);
+        if (isOk) {
+          publishGlobalPlan(transformed_plan);
+        } else {
+          ROS_WARN_NAMED("dwa_local_planner", "DWA planner failed to produce path.");
+          std::vector<geometry_msgs::PoseStamped> empty_plan;
+          publishGlobalPlan(empty_plan);
+        }
+        return isOk;
+      }
     }
   }
 

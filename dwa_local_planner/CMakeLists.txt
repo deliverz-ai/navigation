@@ -5,6 +5,7 @@ find_package(catkin REQUIRED
         COMPONENTS
             angles
             base_local_planner
+            eyeguide_local_planner
             cmake_modules
             costmap_2d
             dynamic_reconfigure
@@ -37,6 +38,7 @@ catkin_package(
     LIBRARIES dwa_local_planner
     CATKIN_DEPENDS
         base_local_planner
+        eyeguide_local_planner
         dynamic_reconfigure
         nav_msgs
         pluginlib
