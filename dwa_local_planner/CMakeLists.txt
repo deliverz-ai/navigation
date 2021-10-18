@@ -5,6 +5,7 @@ find_package(catkin REQUIRED
         COMPONENTS
             angles
             base_local_planner
+            eyeguide_local_planner
             cmake_modules
             costmap_2d
             dynamic_reconfigure
@@ -37,6 +38,7 @@ catkin_package(
     LIBRARIES dwa_local_planner
     CATKIN_DEPENDS
         base_local_planner
+        eyeguide_local_planner
         dynamic_reconfigure
         nav_msgs
         pluginlib
@@ -46,7 +48,7 @@ catkin_package(
         tf2_ros
 )
 
-add_library(dwa_local_planner src/dwa_planner.cpp src/dwa_planner_ros.cpp src/pivot_rotation_controller.cpp src/path_functions.cpp)
+add_library(dwa_local_planner src/dwa_planner.cpp src/dwa_planner_ros.cpp)
 add_dependencies(dwa_local_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(dwa_local_planner ${catkin_LIBRARIES})
 

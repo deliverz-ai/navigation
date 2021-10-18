@@ -131,10 +131,13 @@ namespace dwa_local_planner {
 
       void publishGlobalPlan(std::vector<geometry_msgs::PoseStamped>& path);
 
+      void publishPath(const std::vector<Eigen::Vector2f> &path, const ros::Publisher &pub,
+                       const std::string &frame_id, ros::Time time);
+
       tf2_ros::Buffer* tf_; ///< @brief Used for transforming point clouds
 
       // for visualisation, publishers of global and local plan
-      ros::Publisher g_plan_pub_, l_plan_pub_;
+      ros::Publisher g_plan_pub_, l_plan_pub_, gh_plan_pub_;
 
       base_local_planner::LocalPlannerUtil planner_util_;
 
@@ -148,7 +151,7 @@ namespace dwa_local_planner {
       geometry_msgs::PoseStamped current_pose_;
 
       base_local_planner::LatchedStopRotateController latchedStopRotateController_;
-	  eyeguide_local_planner::PivotRotationController pivotRotationController_;
+      eyeguide_local_planner::PivotRotationController pivotRotationController_;
 
 
       bool initialized_;
