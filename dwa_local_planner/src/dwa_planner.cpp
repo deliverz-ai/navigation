@@ -71,6 +71,9 @@ namespace dwa_local_planner {
     goal_costs_.setScale(goal_distance_bias_);
     goal_front_costs_.setScale(goal_distance_bias_);
 
+    goal_proximity_costs_.setScale(config.goal_proximity_scale);
+    goal_proximity_costs_.setProximityDist(config.goal_proximity_distance);
+
     occdist_scale_ = config.occdist_scale;
     obstacle_costs_.setScale(occdist_scale_);
 
@@ -170,6 +173,7 @@ namespace dwa_local_planner {
     critics.push_back(&alignment_costs_); // prefers trajectories that keep the robot nose on nose path
     critics.push_back(&path_costs_); // prefers trajectories on global path
     critics.push_back(&goal_costs_); // prefers trajectories that go towards (local) goal, based on wave propagation
+    critics.push_back(&goal_proximity_costs_); // Prefers trajectories that go towards goal when in close proximity, based on shortest distance
     critics.push_back(&twirling_costs_); // optionally prefer trajectories that don't spin
 
     // trajectory generators
@@ -252,6 +256,10 @@ namespace dwa_local_planner {
 
     // costs for not going towards the local goal as much as possible
     goal_costs_.setTargetPoses(global_plan_);
+
+    // Goal proximity cost
+    goal_proximity_costs_.setGoalPose(global_plan_.back());
+    goal_proximity_costs_.setRobotPose(global_pose);
 
     // alignment costs
     geometry_msgs::PoseStamped goal_pose = global_plan_.back();
