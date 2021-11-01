@@ -223,16 +223,27 @@ namespace base_local_planner{
       double g_x = adjusted_global_plan[i].pose.position.x;
       double g_y = adjusted_global_plan[i].pose.position.y;
       unsigned int map_x, map_y;
-      if (costmap.worldToMap(g_x, g_y, map_x, map_y) && costmap.getCost(map_x, map_y) != costmap_2d::NO_INFORMATION) {
-        local_goal_x = map_x;
-        local_goal_y = map_y;
-        started_path = true;
-      } else {
-        if (started_path) {
-          break;
-        }// else we might have a non pruned path, so we just continue
+
+      if (costmap.worldToMap(g_x, g_y, map_x, map_y)) {
+        unsigned char cost = costmap.getCost(map_x, map_y);
+        if (cost != costmap_2d::NO_INFORMATION) {
+          started_path = true;
+          // Make sure local goal is out of inflated obstacles area
+          // Otherwise, computing distance to it will stop at the very beginning
+          if (cost != costmap_2d::LETHAL_OBSTACLE &&
+              cost != costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+            local_goal_x = map_x;
+            local_goal_y = map_y;
+          }
+          continue;
+        }
       }
+
+      if (started_path) {
+         break;
+      }// else we might have a non pruned path, so we just continue
     }
+
     if (!started_path) {
       ROS_ERROR("None of the points of the global plan were in the local costmap, global plan points too far from robot");
       return;
