@@ -217,7 +217,8 @@ class AmclNode
     double pf_err_, pf_z_;
     bool pf_init_;
     pf_vector_t pf_odom_pose_;
-    double d_thresh_, a_thresh_;
+    double d_thresh_, a_thresh_, dt_thresh_;
+    ros::Time last_filter_update_ts_;
     int resample_interval_;
     int resample_count_;
     double laser_min_range_;
@@ -435,6 +436,7 @@ AmclNode::AmclNode() :
 
   private_nh_.param("update_min_d", d_thresh_, 0.2);
   private_nh_.param("update_min_a", a_thresh_, M_PI/6.0);
+  private_nh_.param("update_min_dt", dt_thresh_, -1.0);
   private_nh_.param("odom_frame_id", odom_frame_id_, std::string("odom"));
   private_nh_.param("base_frame_id", base_frame_id_, std::string("base_link"));
   private_nh_.param("global_frame_id", global_frame_id_, std::string("map"));
@@ -531,6 +533,7 @@ void AmclNode::reconfigureCB(AMCLConfig &config, uint32_t level)
 
   d_thresh_ = config.update_min_d;
   a_thresh_ = config.update_min_a;
+  dt_thresh_ = config.update_min_dt;
 
   resample_interval_ = config.resample_interval;
 
@@ -1189,18 +1192,22 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
     delta.v[0] = pose.v[0] - pf_odom_pose_.v[0];
     delta.v[1] = pose.v[1] - pf_odom_pose_.v[1];
     delta.v[2] = angle_diff(pose.v[2], pf_odom_pose_.v[2]);
+    double seconds_since_last_filter_update = (last_laser_received_ts_ - last_filter_update_ts_).toSec();
 
     // See if we should update the filter
     bool update = fabs(delta.v[0]) > d_thresh_ ||
                   fabs(delta.v[1]) > d_thresh_ ||
-                  fabs(delta.v[2]) > a_thresh_;
+                  fabs(delta.v[2]) > a_thresh_ ||
+                  (dt_thresh_ >= 0 && seconds_since_last_filter_update >= dt_thresh_);
     update = update || m_force_update;
     m_force_update=false;
 
     // Set the laser update flags
-    if(update)
+    if(update) {
+      last_filter_update_ts_ = last_laser_received_ts_;
       for(unsigned int i=0; i < lasers_update_.size(); i++)
         lasers_update_[i] = true;
+    }
   }
 
   bool force_publication = false;
