@@ -955,6 +955,9 @@ namespace move_base {
           boost::recursive_mutex::scoped_lock lock(planner_mutex_);
           runPlanner_ = true;
           planner_cond_.notify_one();
+          //reset recovery status
+          move_base_msgs::RecoveryStatus msg;
+          recovery_status_pub_.publish(msg);
         }
         ROS_DEBUG_NAMED("move_base","Waiting for plan, in the planning state.");
         break;
